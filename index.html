@@ -1,0 +1,1012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fixed Income Order Execution System</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --header-bg: #1a237e;
+      --header-fg: #fff;
+      --nav-bg: #283593;
+      --nav-active: #3949ab;
+      --main-fg: #222;
+      --table-bg: #fff;
+      --table-th-bg: #e8eaf6;
+      --table-tr-alt: #f5f5f5;
+      --border: #e0e0e0;
+      --btn-bg: #3949ab;
+      --btn-fg: #fff;
+      --btn-disabled: #b0bec5;
+      --tag-bg: #e3f2fd;
+      --tag-fg: #1976d2;
+      --danger: #c62828;
+      --success: #2e7d32;
+      --info: #1565c0;
+      --input-bg: #fff;
+      --input-fg: #222;
+    }
+    body[data-theme="dark"] {
+      --bg: #181a20;
+      --header-bg: #23263a;
+      --header-fg: #fff;
+      --nav-bg: #23263a;
+      --nav-active: #3949ab;
+      --main-fg: #e0e0e0;
+      --table-bg: #23263a;
+      --table-th-bg: #2c2f48;
+      --table-tr-alt: #20222b;
+      --border: #33374a;
+      --btn-bg: #3949ab;
+      --btn-fg: #fff;
+      --btn-disabled: #44495e;
+      --tag-bg: #2c2f48;
+      --tag-fg: #90caf9;
+      --danger: #ef5350;
+      --success: #66bb6a;
+      --info: #42a5f5;
+      --input-bg: #23263a;
+      --input-fg: #e0e0e0;
+    }
+    body { font-family: 'Segoe UI', Arial, sans-serif; margin: 0; background: var(--bg); color: var(--main-fg); transition: background 0.3s, color 0.3s; }
+    header { background: var(--header-bg); color: var(--header-fg); padding: 1rem 2rem; display: flex; align-items: center; justify-content: space-between; }
+    h1 { margin: 0; font-size: 1.7rem; }
+    .theme-toggle { background: var(--btn-bg); color: var(--btn-fg); border: none; border-radius: 3px; padding: 0.5rem 1rem; cursor: pointer; font-size: 1rem; margin-left: 1rem; }
+    nav { display: flex; background: var(--nav-bg); }
+    nav button {
+      flex: 1; padding: 1rem; background: none; border: none; color: var(--header-fg);
+      font-size: 1rem; cursor: pointer; transition: background 0.2s;
+    }
+    nav button.active, nav button:hover { background: var(--nav-active); }
+    main { padding: 2rem; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: var(--table-bg); color: var(--main-fg); }
+    th, td { padding: 0.7rem; border: 1px solid var(--border); text-align: left; }
+    th { background: var(--table-th-bg); }
+    tr:nth-child(even) { background: var(--table-tr-alt); }
+    .form-row { margin-bottom: 1rem; }
+    label { display: block; margin-bottom: 0.3rem; }
+    input, select { padding: 0.5rem; width: 100%; box-sizing: border-box; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--border); }
+    .btn { background: var(--btn-bg); color: var(--btn-fg); border: none; padding: 0.6rem 1.2rem; cursor: pointer; border-radius: 3px; }
+    .btn:disabled { background: var(--btn-disabled); }
+    .flex { display: flex; gap: 1rem; }
+    .flex > * { flex: 1; }
+    .small { font-size: 0.9rem; color: var(--main-fg); opacity: 0.8; }
+    .mt-2 { margin-top: 2rem; }
+    .mb-1 { margin-bottom: 1rem; }
+    .order-type-row { display: flex; gap: 1rem; align-items: center; }
+    .order-type-row label { margin-bottom: 0; }
+    .tag { display: inline-block; padding: 0.2em 0.7em; border-radius: 1em; font-size: 0.85em; background: var(--tag-bg); color: var(--tag-fg); margin-right: 0.5em; }
+    .danger { color: var(--danger); }
+    .success { color: var(--success); }
+    .info { color: var(--info); }
+    .select-method { margin-bottom: 1rem; }
+    @media (max-width: 900px) {
+      main { padding: 1rem; }
+      .flex { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Fixed Income Order Execution System</h1>
+    <button class="theme-toggle" id="theme-toggle">🌙 Dark Mode</button>
+  </header>
+  <nav>
+    <button class="active" data-tab="market">Market Watch</button>
+    <button data-tab="order">Order Execution</button>
+    <button data-tab="trade">Trade Management</button>
+    <button data-tab="net">Net Position</button>
+  </nav>
+  <main>
+    <!-- Market Watch -->
+    <section id="market" class="tab-content active">
+      <h2>Market Watch</h2>
+      <form id="add-bond-form" class="mb-1" style="background:#fff;padding:1rem;border-radius:6px;margin-bottom:1.5rem;box-shadow:0 1px 4px #e0e0e0;">
+        <!-- <div class="flex">
+          <div><label>Ticker</label><input required name="ticker" maxlength="20"></div>
+          <div><label>Bid</label><input required name="bid" type="number" step="0.01"></div>
+          <div><label>Ask</label><input required name="ask" type="number" step="0.01"></div>
+          <div><label>Coupon</label><input required name="coupon" type="number" step="0.01"></div>
+          <div><label>Face Value</label><input required name="face" type="number" step="0.01"></div>
+          <div><label>Price</label><input required name="price" type="number" step="0.01"></div>
+          <div><label>Maturity</label><input required name="maturity" type="date"></div>
+          <div><label>Duration</label><input required name="duration" type="number" step="0.01"></div>
+        </div>
+        <div class="flex">
+          <div><label>Characteristics</label><input name="characteristics" maxlength="50"></div>
+          <div><label>Important Dates</label><input name="importantDates" maxlength="50"></div>
+          <div style="flex:0.2"></div>
+          <div style="flex:0.2"></div>
+          <div style="flex:0.2"></div>
+          <div style="flex:0.2"></div>
+          <div style="flex:0.2"></div>
+          <div style="flex:0.2"></div>
+        </div>
+        <button class="btn mt-2" type="submit">Add Bond</button> -->
+      </form>
+      <table id="market-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Bid</th>
+            <th>Ask</th>
+            <th>YTM (%)</th>
+            <th>Current Yield (%)</th>
+            <th>Face Value</th>
+            <th>Days to Maturity</th>
+            <th>Modified Duration</th>
+            <th>Characteristics</th>
+            <th>Important Dates</th>
+            <!-- <th>Price</th> -->
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JS will populate -->
+        </tbody>
+      </table>
+      <div class="small">
+        <b>Formulas:</b> YTM ≈ [Coupon + (Face - Price)/n] / [(Face + Price)/2], Current Yield = Coupon/Price, Days to Maturity = Maturity Date - Today, Modified Duration = Duration/(1+YTM), Duration is sample value.
+      </div>
+    </section>
+
+    <!-- Order Execution -->
+    <section id="order" class="tab-content">
+      <h2>Order Execution</h2>
+      <form id="order-form">
+        <div class="form-row">
+          <label for="order-ticker">Select Bond</label>
+          <select id="order-ticker" required></select>
+        </div>
+        <div class="form-row order-type-row">
+          <label><input type="radio" name="side" value="Buy" checked> Buy</label>
+          <label><input type="radio" name="side" value="Sell"> Sell</label>
+        </div>
+        <div class="form-row">
+          <label for="order-qty">Quantity</label>
+          <input type="number" id="order-qty" min="1" required>
+        </div>
+        <div class="form-row">
+          <label for="order-disclosed">Disclosed Quantity</label>
+          <input type="number" id="order-disclosed" min="1">
+        </div>
+        <div class="form-row">
+          <label for="order-type">Order Type</label>
+          <select id="order-type">
+            <option value="Market">Market</option>
+            <option value="Limit">Limit</option>
+            <option value="Stop">Stop Loss</option>
+            <option value="Conditional">Conditional</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label for="order-validity">Order Validity</label>
+          <select id="order-validity">
+            <option value="GTC">Good Till Cancelled (GTC)</option>
+            <option value="IOC">Immediate or Cancel (IOC)</option>
+            <option value="Day">Day Order</option>
+          </select>
+        </div>
+        <div class="form-row" id="limit-row" style="display:none;">
+          <label for="order-limit">Limit Price</label>
+          <input type="number" id="order-limit" step="0.01">
+        </div>
+        <div class="form-row" id="stop-row" style="display:none;">
+          <label for="order-stop">Stop Trigger Price</label>
+          <input type="number" id="order-stop" step="0.01">
+        </div>
+        <div class="form-row" id="conditional-row" style="display:none;">
+          <label for="order-conditional">Conditional Order (Executes if Order #)</label>
+          <input type="number" id="order-conditional" min="1">
+        </div>
+        <button class="btn" type="submit">Place Order</button>
+      </form>
+      <div id="order-msg" class="mt-2"></div>
+    </section>
+
+    <!-- Trade Management -->
+    <section id="trade" class="tab-content">
+      <h2>Trade Management</h2>
+      <button class="btn mb-1" id="end-of-day-btn" type="button">Simulate End of Day</button>
+      <table id="trade-table">
+        <thead>
+          <tr>
+            <th>Order #</th>
+            <th>Ticker</th>
+            <th>Side</th>
+            <th>Qty</th>
+            <th>Status</th>
+            <th>Type</th>
+            <th>Validity</th>
+            <th>Price</th>
+            <th>Disclosed Qty</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JS will populate -->
+        </tbody>
+      </table>
+      <div id="amend-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.4);z-index:1000;align-items:center;justify-content:center;">
+        <form id="amend-form" style="background:var(--table-bg);color:var(--main-fg);padding:2rem;border-radius:8px;min-width:320px;max-width:90vw;box-shadow:0 2px 16px #0004;">
+          <h3>Amend Order</h3>
+          <input type="hidden" name="orderId" id="amend-order-id">
+          <div class="form-row"><label>Ticker</label><select name="ticker" id="amend-ticker"></select></div>
+          <div class="form-row order-type-row">
+            <label><input type="radio" name="side" value="Buy"> Buy</label>
+            <label><input type="radio" name="side" value="Sell"> Sell</label>
+          </div>
+          <div class="form-row"><label>Quantity</label><input type="number" name="qty" id="amend-qty" min="1" required></div>
+          <div class="form-row"><label>Disclosed Quantity</label><input type="number" name="disclosed" id="amend-disclosed" min="1"></div>
+          <div class="form-row"><label>Order Type</label>
+            <select name="type" id="amend-type">
+              <option value="Market">Market</option>
+              <option value="Limit">Limit</option>
+              <option value="Stop">Stop Loss</option>
+              <option value="Conditional">Conditional</option>
+            </select>
+          </div>
+          <div class="form-row" id="amend-limit-row" style="display:none;"><label>Limit Price</label><input type="number" name="limit" id="amend-limit" step="0.01"></div>
+          <div class="form-row" id="amend-stop-row" style="display:none;"><label>Stop Trigger Price</label><input type="number" name="stop" id="amend-stop" step="0.01"></div>
+          <div class="form-row" id="amend-conditional-row" style="display:none;"><label>Conditional Order (Executes if Order #)</label><input type="number" name="conditional" id="amend-conditional" min="1"></div>
+          <div class="form-row"><label>Order Validity</label>
+            <select name="validity" id="amend-validity">
+              <option value="GTC">Good Till Cancelled (GTC)</option>
+              <option value="IOC">Immediate or Cancel (IOC)</option>
+              <option value="Day">Day Order</option>
+            </select>
+          </div>
+          <div class="flex"><button class="btn" type="submit">Save</button><button class="btn" type="button" id="amend-cancel">Cancel</button></div>
+        </form>
+      </div>
+      <div class="small">
+        <b>Trade Lifecycle:</b> Placed → Partial → Executed → Cancelled/Amended. Only pending/partial can be cancelled/amended.
+      </div>
+    </section>
+
+    <!-- Net Position -->
+    <section id="net" class="tab-content">
+      <h2>Net Position</h2>
+      <div class="select-method">
+        <label for="method">Valuation Method:</label>
+        <select id="method">
+          <option value="FIFO">FIFO</option>
+          <option value="LIFO">LIFO</option>
+          <option value="WAP">WAP</option>
+        </select>
+      </div>
+      <table id="net-table">
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Net Qty</th>
+            <th>WAP</th>
+            <th>Current Price</th>
+            <th>Unrealized P&L</th>
+            <th>MTM</th>
+            <th>Overall P&L</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- JS will populate -->
+        </tbody>
+      </table>
+      <div id="total-pnl-summary" class="small" style="margin:1rem 0 1.5rem 0;"></div>
+      <div class="small">
+        <b>Formulas:</b> WAP = Σ(Qty×Price)/ΣQty, Unrealized P&L = (Current Price - Avg Buy Price)×Qty, MTM = (Market Price - Cost Price)×Qty, Overall P&L = Realized + Unrealized.
+      </div>
+    </section>
+  </main>
+  <script>
+    // --- Simulated Bond Data ---
+    const bonds = [
+      {
+        ticker: "US9128285M81",
+        bid: 98.45,
+        ask: 98.55,
+        coupon: 3.5,
+        face: 100,
+        price: 98.5,
+        maturity: "2027-06-15",
+        duration: 2.8,
+        characteristics: "US Treasury, Fixed, Semi-Annual",
+        importantDates: "Issue: 2017-06-15, Maturity: 2027-06-15"
+      },
+      {
+        ticker: "IN0020210012",
+        bid: 101.10,
+        ask: 101.25,
+        coupon: 6.18,
+        face: 100,
+        price: 101.2,
+        maturity: "2031-11-15",
+        duration: 6.5,
+        characteristics: "GOI, Fixed, Annual",
+        importantDates: "Issue: 2021-11-15, Maturity: 2031-11-15"
+      },
+      {
+        ticker: "XS0971721963",
+        bid: 99.80,
+        ask: 100.10,
+        coupon: 4.0,
+        face: 100,
+        price: 100,
+        maturity: "2029-09-30",
+        duration: 4.9,
+        characteristics: "Eurobond, Fixed, Annual",
+        importantDates: "Issue: 2019-09-30, Maturity: 2029-09-30"
+      },
+      // Additional diverse bonds
+      {
+        ticker: "JP1201371N79",
+        bid: 99.20,
+        ask: 99.35,
+        coupon: 0.1,
+        face: 100,
+        price: 99.3,
+        maturity: "2026-03-20",
+        duration: 1.7,
+        characteristics: "Japan Govt, Fixed, Semi-Annual",
+        importantDates: "Issue: 2016-03-20, Maturity: 2026-03-20"
+      },
+      {
+        ticker: "DE0001102531",
+        bid: 102.10,
+        ask: 102.25,
+        coupon: 0.5,
+        face: 100,
+        price: 102.2,
+        maturity: "2030-08-15",
+        duration: 5.8,
+        characteristics: "Bund, Fixed, Annual",
+        importantDates: "Issue: 2020-08-15, Maturity: 2030-08-15"
+      },
+      {
+        ticker: "GB00B16NNR78",
+        bid: 110.50,
+        ask: 110.70,
+        coupon: 4.25,
+        face: 100,
+        price: 110.6,
+        maturity: "2040-12-07",
+        duration: 12.5,
+        characteristics: "UK Gilt, Fixed, Semi-Annual",
+        importantDates: "Issue: 2010-12-07, Maturity: 2040-12-07"
+      },
+      {
+        ticker: "FR0014002WK3",
+        bid: 99.90,
+        ask: 100.05,
+        coupon: 0.75,
+        face: 100,
+        price: 100,
+        maturity: "2028-05-25",
+        duration: 3.7,
+        characteristics: "OAT, Fixed, Annual",
+        importantDates: "Issue: 2018-05-25, Maturity: 2028-05-25"
+      },
+      {
+        ticker: "CA135087ZQ60",
+        bid: 98.80,
+        ask: 99.00,
+        coupon: 2.0,
+        face: 100,
+        price: 98.9,
+        maturity: "2029-06-01",
+        duration: 4.2,
+        characteristics: "Canada Govt, Fixed, Semi-Annual",
+        importantDates: "Issue: 2019-06-01, Maturity: 2029-06-01"
+      },
+      {
+        ticker: "XS2010034692",
+        bid: 104.10,
+        ask: 104.30,
+        coupon: 5.5,
+        face: 100,
+        price: 104.2,
+        maturity: "2035-11-15",
+        duration: 9.5,
+        characteristics: "Corporate, USD, Fixed, Annual",
+        importantDates: "Issue: 2020-11-15, Maturity: 2035-11-15"
+      },
+      {
+        ticker: "US459200JY16",
+        bid: 101.50,
+        ask: 101.70,
+        coupon: 3.0,
+        face: 100,
+        price: 101.6,
+        maturity: "2028-09-15",
+        duration: 3.9,
+        characteristics: "IBM Corp, USD, Fixed, Semi-Annual",
+        importantDates: "Issue: 2018-09-15, Maturity: 2028-09-15"
+      },
+      {
+        ticker: "AU3CB0241740",
+        bid: 99.60,
+        ask: 99.80,
+        coupon: 2.75,
+        face: 100,
+        price: 99.7,
+        maturity: "2032-06-21",
+        duration: 7.5,
+        characteristics: "Australia Govt, Fixed, Semi-Annual",
+        importantDates: "Issue: 2022-06-21, Maturity: 2032-06-21"
+      },
+      {
+        ticker: "US9144471047",
+        bid: 100.10,
+        ask: 100.30,
+        coupon: 4.0,
+        face: 100,
+        price: 100.2,
+        maturity: "2026-04-01",
+        duration: 1.9,
+        characteristics: "Munis, NY, Tax-Exempt, Fixed",
+        importantDates: "Issue: 2016-04-01, Maturity: 2026-04-01"
+      },
+      {
+        ticker: "XS1234567890",
+        bid: 97.50,
+        ask: 97.70,
+        coupon: 6.0,
+        face: 100,
+        price: 97.6,
+        maturity: "2027-10-10",
+        duration: 2.3,
+        characteristics: "Emerging Market, Fixed, Annual",
+        importantDates: "Issue: 2017-10-10, Maturity: 2027-10-10"
+      }
+    ];
+
+    // --- State ---
+    let orders = [];
+    let trades = [];
+    let orderId = 1;
+    let method = "FIFO";
+
+    // --- Persistence Helpers ---
+    function saveState() {
+      localStorage.setItem('orders', JSON.stringify(orders));
+      localStorage.setItem('trades', JSON.stringify(trades));
+      localStorage.setItem('orderId', orderId);
+    }
+    function loadState() {
+      const o = localStorage.getItem('orders');
+      const t = localStorage.getItem('trades');
+      const id = localStorage.getItem('orderId');
+      if (o) orders = JSON.parse(o);
+      if (t) trades = JSON.parse(t);
+      if (id) orderId = Number(id);
+    }
+
+    loadState();
+
+    // --- Utility Functions ---
+    function daysToMaturity(maturity) {
+      const today = new Date();
+      const mat = new Date(maturity);
+      return Math.max(0, Math.round((mat - today) / (1000 * 60 * 60 * 24)));
+    }
+    function ytm(bond) {
+      // YTM ≈ [Coupon + (Face - Price)/n] / [(Face + Price)/2]
+      const n = daysToMaturity(bond.maturity) / 365;
+      if (n <= 0) return 0;
+      return 100 * ((bond.coupon + (bond.face - bond.price) / n) / ((bond.face + bond.price) / 2));
+    }
+    function currentYield(bond) {
+      return 100 * (bond.coupon / bond.price);
+    }
+    function modifiedDuration(bond) {
+      // MD = Duration / (1 + YTM)
+      const ytmVal = ytm(bond) / 100;
+      return bond.duration / (1 + ytmVal);
+    }
+    function format(num, dec=2) {
+      return isNaN(num) ? '-' : Number(num).toFixed(dec);
+    }
+
+    // --- Market Watch Table ---
+    function renderMarket() {
+      const tbody = document.querySelector("#market-table tbody");
+      tbody.innerHTML = "";
+      bonds.forEach(bond => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${bond.ticker}</td>
+          <td>${format(bond.bid)}</td>
+          <td>${format(bond.ask)}</td>
+          <td>${format(ytm(bond))}</td>
+          <td>${format(currentYield(bond))}</td>
+          <td>${format(bond.face,0)}</td>
+          <td>${daysToMaturity(bond.maturity)}</td>
+          <td>${format(modifiedDuration(bond))}</td>
+          <td>${bond.characteristics}</td>
+          <td>${bond.importantDates}</td>
+          <!-- <td>${format(bond.price)}</td> -->
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    // --- Order Execution ---
+    function renderOrderForm() {
+      const sel = document.getElementById("order-ticker");
+      sel.innerHTML = "";
+      bonds.forEach(bond => {
+        const opt = document.createElement("option");
+        opt.value = bond.ticker;
+        opt.textContent = bond.ticker;
+        sel.appendChild(opt);
+      });
+    }
+    function handleOrderTypeChange() {
+      const type = document.getElementById("order-type").value;
+      document.getElementById("limit-row").style.display = (type === "Limit") ? "" : "none";
+      document.getElementById("stop-row").style.display = (type === "Stop") ? "" : "none";
+      document.getElementById("conditional-row").style.display = (type === "Conditional") ? "" : "none";
+    }
+    function placeOrder(e) {
+      e.preventDefault();
+      const ticker = document.getElementById("order-ticker").value;
+      const side = document.querySelector("input[name='side']:checked").value;
+      const qty = parseInt(document.getElementById("order-qty").value);
+      const disclosed = parseInt(document.getElementById("order-disclosed").value) || qty;
+      const type = document.getElementById("order-type").value;
+      const limit = parseFloat(document.getElementById("order-limit").value) || null;
+      const stop = parseFloat(document.getElementById("order-stop").value) || null;
+      const conditional = parseInt(document.getElementById("order-conditional").value) || null;
+      const validity = document.getElementById("order-validity").value;
+
+      // Use ask/bid for limit orders, price for stop orders
+      let price = null;
+      const bond = bonds.find(b => b.ticker === ticker);
+      if (type === "Market") {
+        price = (side === "Buy") ? bond.ask : bond.bid;
+      } else if (type === "Limit") {
+        if (side === "Buy" && bond.ask <= limit) price = bond.ask;
+        else if (side === "Sell" && bond.bid >= limit) price = bond.bid;
+        else price = null;
+      } else if (type === "Stop") {
+        if (side === "Buy" && bond.price >= stop) price = bond.price;
+        else if (side === "Sell" && bond.price <= stop) price = bond.price;
+        else price = null;
+      } else if (type === "Conditional") {
+        const condOrder = orders.find(o => o.id === conditional && o.status === "Executed");
+        if (condOrder) price = (side === "Buy") ? bond.ask : bond.bid;
+        else price = null;
+      }
+
+      let status = "Placed";
+      const order = {
+        id: orderId++,
+        ticker, side, qty, disclosed, type, price, limit, stop, conditional, status,
+        filled: 0, // Track filled quantity
+        validity,
+        createdAt: Date.now()
+      };
+      orders.push(order);
+      document.getElementById("order-msg").innerHTML = `<span class="info">Order #${order.id} Placed</span>`;
+      renderTradeTable();
+      renderNetTable();
+      e.target.reset();
+      handleOrderTypeChange();
+      // IOC logic: execute/cancel immediately
+      if (validity === "IOC") {
+        let executed = false;
+        if (type === "Market") {
+          if (price !== null) {
+            executeOrder(order, price);
+            executed = true;
+          }
+        } else if (type === "Limit") {
+          if (side === "Buy" && bond.ask <= limit) {
+            executeOrder(order, bond.ask);
+            executed = true;
+          } else if (side === "Sell" && bond.bid >= limit) {
+            executeOrder(order, bond.bid);
+            executed = true;
+          }
+        } else if (type === "Stop") {
+          if (side === "Buy" && bond.ask >= stop) {
+            executeOrder(order, bond.ask);
+            executed = true;
+          } else if (side === "Sell" && bond.bid <= stop) {
+            executeOrder(order, bond.bid);
+            executed = true;
+          }
+        }
+        if (!executed) {
+          order.status = "Cancelled";
+          renderTradeTable();
+          renderNetTable();
+        }
+        saveState();
+      } else if (type === "Market") {
+        // Only Market orders use lifecycle simulation
+        simulateOrderLifecycle(order);
+        saveState();
+      } else {
+        // Limit, Stop, Conditional: remain Placed until market condition is met
+        saveState();
+      }
+    }
+
+    // --- Order Fill Lifecycle Simulation ---
+    function simulateOrderLifecycle(order) {
+      // After 2s, move to Partial (if qty > 1), then after 2s more, to Executed
+      setTimeout(() => {
+        if (order.status === "Placed" && order.qty > 1) {
+          order.status = "Partial";
+          // Fill half the quantity
+          const fillQty = Math.floor(order.qty / 2);
+          order.filled = fillQty;
+          trades.push({
+            orderId: order.id, ticker: order.ticker, side: order.side, qty: fillQty, price: order.price, status: "Executed"
+          });
+          renderTradeTable();
+          renderNetTable();
+          saveState();
+        }
+        // After another 2s, fill the rest
+        setTimeout(() => {
+          if (["Placed", "Partial"].includes(order.status)) {
+            order.status = "Executed";
+            const remaining = order.qty - order.filled;
+            if (remaining > 0) {
+              trades.push({
+                orderId: order.id, ticker: order.ticker, side: order.side, qty: remaining, price: order.price, status: "Executed"
+              });
+            }
+            order.filled = order.qty;
+            renderTradeTable();
+            renderNetTable();
+            saveState();
+          }
+        }, 2000);
+      }, 2000);
+    }
+
+    // --- Trade Management ---
+    function renderTradeTable() {
+      const tbody = document.querySelector("#trade-table tbody");
+      tbody.innerHTML = "";
+      orders.forEach(order => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${order.id}</td>
+          <td>${order.ticker}</td>
+          <td>${order.side}</td>
+          <td>${order.qty}</td>
+          <td>
+            <span class="tag ${order.status === 'Executed' ? 'success' : order.status === 'Cancelled' ? 'danger' : 'info'}">${order.status}</span>
+          </td>
+          <td>${order.type}</td>
+          <td>${order.validity || 'GTC'}</td>
+          <td>${order.price !== null ? format(order.price) : '-'}</td>
+          <td>${order.disclosed}</td>
+          <td>
+            ${["Placed", "Partial"].includes(order.status) ? `
+              <button class="btn" onclick="cancelOrder(${order.id})">Cancel</button>
+              <button class="btn" onclick="openAmendModal(${order.id})">Amend</button>
+            ` : ""}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+      saveState();
+    }
+    window.cancelOrder = function(id) {
+      const order = orders.find(o => o.id === id);
+      if (order && ["Placed", "Partial"].includes(order.status)) {
+        order.status = "Cancelled";
+        renderTradeTable();
+        renderNetTable();
+        saveState();
+      }
+    }
+    // --- Amend Modal Logic ---
+    window.openAmendModal = function(orderId) {
+      const modal = document.getElementById('amend-modal');
+      const form = document.getElementById('amend-form');
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      // Populate fields
+      document.getElementById('amend-order-id').value = order.id;
+      // Ticker dropdown
+      const tickerSel = document.getElementById('amend-ticker');
+      tickerSel.innerHTML = '';
+      bonds.forEach(b => {
+        const opt = document.createElement('option');
+        opt.value = b.ticker;
+        opt.textContent = b.ticker;
+        tickerSel.appendChild(opt);
+      });
+      tickerSel.value = order.ticker;
+      // Side
+      form.querySelectorAll('input[name="side"]').forEach(r => r.checked = (r.value === order.side));
+      // Qty
+      document.getElementById('amend-qty').value = order.qty;
+      document.getElementById('amend-disclosed').value = order.disclosed;
+      // Type
+      document.getElementById('amend-type').value = order.type;
+      // Limit/Stop/Conditional
+      document.getElementById('amend-limit').value = order.limit || '';
+      document.getElementById('amend-stop').value = order.stop || '';
+      document.getElementById('amend-conditional').value = order.conditional || '';
+      // Validity
+      document.getElementById('amend-validity').value = order.validity || 'GTC';
+      // Show/hide rows
+      handleAmendTypeChange();
+      modal.style.display = 'flex';
+    }
+    document.getElementById('amend-type').onchange = handleAmendTypeChange;
+    function handleAmendTypeChange() {
+      const type = document.getElementById('amend-type').value;
+      document.getElementById('amend-limit-row').style.display = (type === 'Limit') ? '' : 'none';
+      document.getElementById('amend-stop-row').style.display = (type === 'Stop') ? '' : 'none';
+      document.getElementById('amend-conditional-row').style.display = (type === 'Conditional') ? '' : 'none';
+    }
+    document.getElementById('amend-cancel').onclick = function() {
+      document.getElementById('amend-modal').style.display = 'none';
+    };
+    document.getElementById('amend-form').onsubmit = function(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const orderId = Number(fd.get('orderId'));
+      const order = orders.find(o => o.id === orderId);
+      if (!order) return;
+      // Update fields
+      order.ticker = fd.get('ticker');
+      order.side = fd.get('side');
+      order.qty = parseInt(fd.get('qty'));
+      order.disclosed = parseInt(fd.get('disclosed')) || order.qty;
+      order.type = fd.get('type');
+      order.limit = parseFloat(fd.get('limit')) || null;
+      order.stop = parseFloat(fd.get('stop')) || null;
+      order.conditional = parseInt(fd.get('conditional')) || null;
+      order.validity = fd.get('validity');
+      // Reset status and filled if needed
+      if (["Placed", "Partial"].includes(order.status)) {
+        order.filled = 0;
+        // Optionally, reset price for new execution
+        order.price = null;
+      }
+      document.getElementById('amend-modal').style.display = 'none';
+      renderTradeTable();
+      renderNetTable();
+      saveState();
+    };
+
+    // --- Net Position ---
+    function renderNetTable() {
+      const tbody = document.querySelector("#net-table tbody");
+      tbody.innerHTML = "";
+      // Group trades by ticker
+      const positions = {};
+      trades.filter(t => t.status === "Executed").forEach(trade => {
+        if (!positions[trade.ticker]) positions[trade.ticker] = [];
+        positions[trade.ticker].push(trade);
+      });
+      let totalRealized = 0, totalUnrealized = 0, totalOverall = 0;
+      Object.keys(positions).forEach(ticker => {
+        const bond = bonds.find(b => b.ticker === ticker);
+        const tradesArr = positions[ticker];
+        let netQty = 0, totalCost = 0, totalBuyQty = 0, totalBuyCost = 0;
+        let buyTrades = [], sellTrades = [];
+        tradesArr.forEach(t => {
+          if (t.side === "Buy") {
+            netQty += t.qty;
+            totalBuyQty += t.qty;
+            totalBuyCost += t.qty * t.price;
+            buyTrades.push({...t});
+          } else {
+            netQty -= t.qty;
+            sellTrades.push({...t});
+          }
+        });
+        // WAP
+        let wap = totalBuyQty ? totalBuyCost / totalBuyQty : 0;
+        // FIFO/LIFO logic for realized P&L
+        let realized = 0;
+        let buyStack = method === "LIFO" ? buyTrades.reverse() : buyTrades.slice();
+        sellTrades.forEach(sell => {
+          let qtyLeft = sell.qty;
+          while (qtyLeft > 0 && buyStack.length) {
+            let buy = buyStack[0];
+            let matchQty = Math.min(buy.qty, qtyLeft);
+            realized += (sell.price - buy.price) * matchQty * (sell.side === "Sell" ? 1 : -1);
+            buy.qty -= matchQty;
+            qtyLeft -= matchQty;
+            if (buy.qty === 0) buyStack.shift();
+          }
+        });
+        // Unrealized P&L
+        const currentPrice = bond.price;
+        const unrealized = (currentPrice - wap) * netQty;
+        // MTM
+        const mtm = (bond.price - wap) * netQty;
+        // Overall P&L
+        const overall = realized + unrealized;
+        totalRealized += realized;
+        totalUnrealized += unrealized;
+        totalOverall += overall;
+        tbody.innerHTML += `
+          <tr>
+            <td>${ticker}</td>
+            <td>${netQty}</td>
+            <td>${format(wap)}</td>
+            <td>${format(currentPrice)}</td>
+            <td>${format(unrealized)}</td>
+            <td>${format(mtm)}</td>
+            <td>${format(overall)}</td>
+          </tr>
+        `;
+      });
+      // Show total P&L summary
+      document.getElementById("total-pnl-summary").innerHTML =
+        `<b>Total Realized P&L:</b> <span class='${totalRealized>=0?"success":"danger"}'>${format(totalRealized)}</span> &nbsp; | &nbsp; ` +
+        `<b>Total Unrealized P&L:</b> <span class='${totalUnrealized>=0?"success":"danger"}'>${format(totalUnrealized)}</span> &nbsp; | &nbsp; ` +
+        `<b>Total Overall P&L:</b> <span class='${totalOverall>=0?"success":"danger"}'>${format(totalOverall)}</span>`;
+    }
+
+    // --- Tab Navigation ---
+    document.querySelectorAll("nav button").forEach(btn => {
+      btn.onclick = function() {
+        document.querySelectorAll("nav button").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        document.querySelectorAll(".tab-content").forEach(tab => tab.classList.remove("active"));
+        document.getElementById(btn.dataset.tab).classList.add("active");
+      }
+    });
+
+    // --- Event Listeners ---
+    document.getElementById("order-type").onchange = handleOrderTypeChange;
+    document.getElementById("order-form").onsubmit = placeOrder;
+    document.getElementById("method").onchange = function(e) {
+      method = e.target.value;
+      renderNetTable();
+    };
+
+    // --- Initial Render ---
+    renderMarket();
+    renderOrderForm();
+    renderTradeTable();
+    renderNetTable();
+    handleOrderTypeChange();
+
+    // --- Add Bond Form Logic ---
+    document.getElementById("add-bond-form").onsubmit = function(e) {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const bond = {
+        ticker: fd.get("ticker"),
+        bid: Number(fd.get("bid")),
+        ask: Number(fd.get("ask")),
+        coupon: Number(fd.get("coupon")),
+        face: Number(fd.get("face")),
+        price: Number(fd.get("price")),
+        maturity: fd.get("maturity"),
+        duration: Number(fd.get("duration")),
+        characteristics: fd.get("characteristics") || "",
+        importantDates: fd.get("importantDates") || ""
+      };
+      bonds.push(bond);
+      renderMarket();
+      renderOrderForm();
+      e.target.reset();
+    }
+
+    // --- Simulated Live Market Data Updates ---
+    function randomizeBondPrices() {
+      bonds.forEach(bond => {
+        // Simulate small random walk for bid/ask/price
+        const spread = Math.abs(bond.ask - bond.bid);
+        const mid = (bond.ask + bond.bid) / 2;
+        // Random walk for mid price
+        const change = (Math.random() - 0.5) * 0.2; // up to ±0.1
+        let newMid = mid + change;
+        // Keep within reasonable bounds
+        if (newMid < bond.face * 0.9) newMid = bond.face * 0.9;
+        if (newMid > bond.face * 1.1) newMid = bond.face * 1.1;
+        // New bid/ask
+        bond.bid = Number((newMid - spread/2).toFixed(2));
+        bond.ask = Number((newMid + spread/2).toFixed(2));
+        // Price is mid
+        bond.price = Number(newMid.toFixed(2));
+      });
+      renderMarket();
+      renderNetTable();
+      checkPendingOrders();
+    }
+
+    // --- Check and Execute Pending Orders (Limit/Stop) ---
+    function checkPendingOrders() {
+      orders.forEach(order => {
+        if (["Placed", "Partial"].includes(order.status)) {
+          const bond = bonds.find(b => b.ticker === order.ticker);
+          if (!bond) return;
+          // Only GTC and Day orders are eligible for periodic execution
+          if (order.validity === "IOC") return;
+          // Limit Order Logic (use ask/bid)
+          // Buy: market ask <= limit price (fill at ask)
+          // Sell: market bid >= limit price (fill at bid)
+          if (order.type === "Limit") {
+            if (order.side === "Buy" && bond.ask <= order.limit) {
+              executeOrder(order, bond.ask);
+            } else if (order.side === "Sell" && bond.bid >= order.limit) {
+              executeOrder(order, bond.bid);
+            }
+          }
+          // Stop Loss Logic (use market price)
+          // Buy: market price >= stop price
+          // Sell: market price <= stop price
+          else if (order.type === "Stop") {
+            if (order.side === "Buy" && bond.price >= order.stop) {
+              executeOrder(order, bond.price);
+            } else if (order.side === "Sell" && bond.price <= order.stop) {
+              executeOrder(order, bond.price);
+            }
+          }
+        }
+      });
+    }
+
+    // --- Execute Order Helper ---
+    function executeOrder(order, execPrice) {
+      if (order.status === "Executed" || order.status === "Cancelled") return;
+      // Simulate instant full fill for simplicity
+      order.status = "Executed";
+      order.price = execPrice;
+      trades.push({
+        orderId: order.id, ticker: order.ticker, side: order.side, qty: order.qty, price: execPrice, status: "Executed"
+      });
+      order.filled = order.qty;
+      renderTradeTable();
+      renderNetTable();
+      saveState();
+    }
+    setInterval(randomizeBondPrices, 5000);
+
+    // --- Theme Toggle ---
+    const themeToggle = document.getElementById('theme-toggle');
+    function setTheme(theme) {
+      document.body.setAttribute('data-theme', theme);
+      themeToggle.textContent = theme === 'dark' ? '☀️ Light Mode' : '🌙 Dark Mode';
+      localStorage.setItem('theme', theme);
+    }
+    themeToggle.onclick = function() {
+      const current = document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      setTheme(current);
+    };
+    // On load, set theme from localStorage or system
+    (function() {
+      const saved = localStorage.getItem('theme');
+      if (saved) setTheme(saved);
+      else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) setTheme('dark');
+      else setTheme('light');
+    })();
+
+    // --- End of Day Logic ---
+    document.getElementById("end-of-day-btn").onclick = function() {
+      let changed = false;
+      orders.forEach(order => {
+        if (["Placed", "Partial"].includes(order.status) && order.validity === "Day") {
+          order.status = "Cancelled";
+          changed = true;
+        }
+      });
+      if (changed) {
+        renderTradeTable();
+        renderNetTable();
+        saveState();
+        alert("All open Day orders have been cancelled (End of Day).");
+      } else {
+        alert("No open Day orders to cancel.");
+      }
+    }
+  </script>
+</body>
+</html> 
