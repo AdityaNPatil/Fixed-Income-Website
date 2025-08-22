@@ -795,13 +795,12 @@
         const sells = tradesArr.filter(t => t.side === 'Sell').map(t => ({ qty: t.qty, price: t.price }));
         
         // Calculate realized P&L by matching sells to buys using FIFO/LIFO
+        // Realized P&L = (Sell Price - Buy Price) × Quantity
         let realized = 0;
         let remainingBuys = buys.map(b => ({ qty: b.qty, price: b.price }));
         
         sells.forEach(sell => {
           let qtyToSell = sell.qty;
-          let sellProceeds = sell.qty * sell.price;
-          let sellCost = 0;
           
           while (qtyToSell > 0 && remainingBuys.length > 0) {
             let buyLot;
@@ -812,7 +811,8 @@
             }
             
             const qtyFromLot = Math.min(buyLot.qty, qtyToSell);
-            sellCost += qtyFromLot * buyLot.price;
+            // Realized P&L = (Sell Price - Buy Price) × Quantity
+            realized += (sell.price - buyLot.price) * qtyFromLot;
             buyLot.qty -= qtyFromLot;
             qtyToSell -= qtyFromLot;
             
@@ -825,8 +825,6 @@
               }
             }
           }
-          
-          realized += sellProceeds - sellCost;
         });
         
         // Calculate remaining inventory and average cost
@@ -834,9 +832,21 @@
         const remainingCost = remainingBuys.reduce((sum, lot) => sum + (lot.qty * lot.price), 0);
         const avgCost = netQty > 0 ? remainingCost / netQty : 0;
         
-        // Calculate unrealized P&L
-        const currentPrice = bond ? bond.price : 0;
-        const unrealized = netQty > 0 ? (currentPrice - avgCost) * netQty : 0;
+        // Calculate unrealized P&L using appropriate price based on position
+        let unrealized = 0;
+        if (netQty !== 0 && bond) {
+          let markPrice;
+          if (netQty > 0) {
+            // Long position: use bid price (what you could sell for)
+            markPrice = bond.price; // TODO use .bid
+          } else {
+            // Short position: use ask price (what you'd pay to cover)
+            markPrice = bond.price; // TODO use .ask
+          }
+          // Unrealized P&L = (Mark Price - Average Cost) × Net Quantity
+          unrealized = (markPrice - avgCost) * netQty;
+        }
+        
         const overall = realized + unrealized;
         
         totalRealized += realized;
@@ -848,7 +858,8 @@
             <td>${ticker}</td>
             <td>${netQty}</td>
             <td>${format(avgCost)}</td>
-            <td>${format(currentPrice)}</td>
+            <td>${format(netQty > 0 ? bond?.price : bond?.price)}</td>  
+            <!-- // TODO use .bid and .ask -->
             <td>${format(unrealized)}</td>
             <td>${format(unrealized)}</td>
             <td>${format(overall)}</td>
@@ -913,7 +924,6 @@
     function randomizeBondPrices() {
       bonds.forEach(bond => {
         // Simulate small random walk for bid/ask/price
-        const spread = Math.abs(bond.ask - bond.bid);
         const mid = (bond.ask + bond.bid) / 2;
         // Random walk for mid price
         const change = (Math.random() - 0.5) * 0.2; // up to ±0.1
@@ -921,10 +931,35 @@
         // Keep within reasonable bounds
         if (newMid < bond.face * 0.9) newMid = bond.face * 0.9;
         if (newMid > bond.face * 1.1) newMid = bond.face * 1.1;
-        // New bid/ask
-        bond.bid = Number((newMid - spread/2).toFixed(2));
-        bond.ask = Number((newMid + spread/2).toFixed(2));
-        // Price is mid
+        
+        // Dynamic spread calculation based on market conditions
+        let baseSpread;
+        if (bond.creditRating && bond.creditRating.includes('AAA')) {
+          baseSpread = 0.05; // Tight spread for AAA bonds
+        } else if (bond.creditRating && (bond.creditRating.includes('AA') || bond.creditRating.includes('A'))) {
+          baseSpread = 0.08; // Medium spread for AA/A bonds
+        } else if (bond.creditRating && bond.creditRating.includes('BBB')) {
+          baseSpread = 0.12; // Wider spread for BBB bonds
+        } else if (bond.creditRating && bond.creditRating.includes('BB')) {
+          baseSpread = 0.20; // Wide spread for BB bonds
+        } else {
+          baseSpread = 0.10; // Default spread
+        }
+        
+        // Adjust spread based on price level (higher prices = wider spreads)
+        const priceFactor = newMid / 100;
+        let dynamicSpread = baseSpread * priceFactor;
+        
+        // Add some randomness to spread (±20%)
+        const spreadVariation = 1 + (Math.random() - 0.5) * 0.4;
+        dynamicSpread *= spreadVariation;
+        
+        // Ensure minimum spread
+        dynamicSpread = Math.max(dynamicSpread, 0.02);
+        
+        // New bid/ask with dynamic spread
+        bond.bid = Number((newMid - dynamicSpread/2).toFixed(2));
+        bond.ask = Number((newMid + dynamicSpread/2).toFixed(2));
         bond.price = Number(newMid.toFixed(2));
       });
       renderMarket();
