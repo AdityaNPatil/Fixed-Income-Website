@@ -789,60 +789,60 @@
       Object.keys(positions).forEach(ticker => {
         const bond = bonds.find(b => b.ticker === ticker);
         const tradesArr = positions[ticker];
-        // Separate buys and sells preserving order
+        
+        // Separate buys and sells, preserving execution order
         const buys = tradesArr.filter(t => t.side === 'Buy').map(t => ({ qty: t.qty, price: t.price }));
         const sells = tradesArr.filter(t => t.side === 'Sell').map(t => ({ qty: t.qty, price: t.price }));
-
-        // Build buy lots according to method (FIFO: natural order, LIFO: reverse order for consumption)
-        const buyLots = buys.map(b => ({ qty: b.qty, price: b.price }));
-        const stack = method === 'LIFO' ? buyLots.slice().reverse() : buyLots.slice();
-
-        // For realized P&L, we need a consumable view of buys
+        
+        // Calculate realized P&L by matching sells to buys using FIFO/LIFO
         let realized = 0;
+        let remainingBuys = buys.map(b => ({ qty: b.qty, price: b.price }));
+        
         sells.forEach(sell => {
-          let qtyLeft = sell.qty;
-          while (qtyLeft > 0 && stack.length) {
-            const lot = stack[0];
-            const matched = Math.min(lot.qty, qtyLeft);
-            realized += (sell.price - lot.price) * matched;
-            lot.qty -= matched;
-            qtyLeft -= matched;
-            if (lot.qty === 0) stack.shift();
+          let qtyToSell = sell.qty;
+          let sellProceeds = sell.qty * sell.price;
+          let sellCost = 0;
+          
+          while (qtyToSell > 0 && remainingBuys.length > 0) {
+            let buyLot;
+            if (method === 'FIFO') {
+              buyLot = remainingBuys[0]; // Take from first (earliest) lot
+            } else { // LIFO
+              buyLot = remainingBuys[remainingBuys.length - 1]; // Take from last (latest) lot
+            }
+            
+            const qtyFromLot = Math.min(buyLot.qty, qtyToSell);
+            sellCost += qtyFromLot * buyLot.price;
+            buyLot.qty -= qtyFromLot;
+            qtyToSell -= qtyFromLot;
+            
+            // Remove empty lots
+            if (buyLot.qty === 0) {
+              if (method === 'FIFO') {
+                remainingBuys.shift();
+              } else {
+                remainingBuys.pop();
+              }
+            }
           }
-          // If sells exceed buys, ignore extra (shorts not modeled)
+          
+          realized += sellProceeds - sellCost;
         });
-
-        // Remaining inventory after sells (reconstruct remaining lots in natural order)
-        // We must reconstruct based on the original buyLots and what was consumed.
-        // Approach: simulate again consumption on a copy to determine leftovers in original order.
-        const remainingLots = buyLots.map(l => ({ qty: l.qty, price: l.price }));
-        let sellRemainder = sells.reduce((sum, s) => sum + s.qty, 0);
-        if (method === 'FIFO') {
-          for (let i = 0; i < remainingLots.length && sellRemainder > 0; i++) {
-            const take = Math.min(remainingLots[i].qty, sellRemainder);
-            remainingLots[i].qty -= take;
-            sellRemainder -= take;
-          }
-        } else { // LIFO
-          for (let i = remainingLots.length - 1; i >= 0 && sellRemainder > 0; i--) {
-            const take = Math.min(remainingLots[i].qty, sellRemainder);
-            remainingLots[i].qty -= take;
-            sellRemainder -= take;
-          }
-        }
-
-        const netQty = remainingLots.reduce((sum, l) => sum + l.qty, 0);
-        const remainingCost = remainingLots.reduce((sum, l) => sum + l.qty * l.price, 0);
+        
+        // Calculate remaining inventory and average cost
+        const netQty = remainingBuys.reduce((sum, lot) => sum + lot.qty, 0);
+        const remainingCost = remainingBuys.reduce((sum, lot) => sum + (lot.qty * lot.price), 0);
         const avgCost = netQty > 0 ? remainingCost / netQty : 0;
-
+        
+        // Calculate unrealized P&L
         const currentPrice = bond ? bond.price : 0;
         const unrealized = netQty > 0 ? (currentPrice - avgCost) * netQty : 0;
         const overall = realized + unrealized;
-
+        
         totalRealized += realized;
         totalUnrealized += unrealized;
         totalOverall += overall;
-
+        
         tbody.innerHTML += `
           <tr>
             <td>${ticker}</td>
