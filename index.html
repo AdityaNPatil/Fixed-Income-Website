@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <title>Fixed Income Order Execution System</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -21,7 +22,7 @@
     <!-- Market Watch -->
     <section id="market" class="tab-content active">
       <h2>Market Watch</h2>
-      <form id="add-bond-form" class="mb-1" style="background:#fff;padding:1rem;border-radius:6px;margin-bottom:1.5rem;box-shadow:0 1px 4px #e0e0e0;">
+      <form id="add-bond-form">
         <!-- <div class="flex">
           <div><label>Ticker</label><input required name="ticker" maxlength="20"></div>
           <div><label>Bid</label><input required name="bid" type="number" step="0.01"></div>
@@ -64,6 +65,21 @@
           <!-- JS will populate -->
         </tbody>
       </table>
+      <!-- Price Chart Modal -->
+      <div id="chart-modal" style="display:none;position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.7);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+        <div style="background:var(--table-bg);color:var(--main-fg);padding:2rem;border-radius:16px;min-width:600px;max-width:90vw;box-shadow:0 20px 60px rgba(0,0,0,0.3);position:relative;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3 id="chart-title" style="margin:0;font-size:1.4rem;font-weight:600;"></h3>
+            <button class="btn" onclick="closeChartModal()" style="padding:0.4rem 0.8rem;font-size:0.9rem;">✕</button>
+          </div>
+          <div style="position:relative;height:400px;width:100%;">
+            <canvas id="price-chart"></canvas>
+          </div>
+          <div style="margin-top:1rem;text-align:center;color:var(--muted);font-size:0.9rem;">
+            <span id="chart-status">Updates with market changes • Click ✕ to close</span>
+          </div>
+        </div>
+      </div>
       <div class="small">
         <b>Formulas:</b> YTM ≈ [Coupon + (Face - Price)/n] / [(Face + Price)/2], Current Yield = Coupon/Price, Days to Maturity = Maturity Date - Today, Modified Duration = Duration/(1+YTM), Duration is sample value.
       </div>
@@ -461,6 +477,7 @@
     let trades = [];
     let orderId = 1;
     let method = "FIFO";
+    let priceHistory = {}; // Track price history for each bond
 
     // --- Persistence Helpers ---
     function saveState() {
@@ -522,6 +539,9 @@
           <td>Issue: ${bond.issueDate || '-'}, Maturity: ${bond.maturity || '-'}, Ex-Coupon: ${bond.exCouponDate || '-'}, Coupon: ${bond.couponDate || '-'}</td>
           <!-- <td>${format(bond.price)}</td> -->
         `;
+        tr.style.cursor = 'pointer';
+        tr.title = 'Click to Check Graph';
+        tr.onclick = () => openPriceChart(bond.ticker);
         tbody.appendChild(tr);
       });
     }
@@ -867,10 +887,24 @@
         `;
       });
       // Show total P&L summary
-      document.getElementById("total-pnl-summary").innerHTML =
-        `<b>Total Realized P&L:</b> <span class='${totalRealized>=0?"success":"danger"}'>${format(totalRealized)}</span> &nbsp; | &nbsp; ` +
-        `<b>Total Unrealized P&L:</b> <span class='${totalUnrealized>=0?"success":"danger"}'>${format(totalUnrealized)}</span> &nbsp; | &nbsp; ` +
-        `<b>Total Overall P&L:</b> <span class='${totalOverall>=0?"success":"danger"}'>${format(totalOverall)}</span>`;
+      document.getElementById("total-pnl-summary").innerHTML = `
+        <div class="pnl-summary-container">
+          <div class="pnl-item">
+            <b>Total Realized P&L:</b>
+            <span class='${totalRealized>=0?"success":"danger"}'>${format(totalRealized)}</span>
+          </div>
+          <div class="pnl-separator">|</div>
+          <div class="pnl-item">
+            <b>Total Unrealized P&L:</b>
+            <span class='${totalUnrealized>=0?"success":"danger"}'>${format(totalUnrealized)}</span>
+          </div>
+          <div class="pnl-separator">|</div>
+          <div class="pnl-item">
+            <b>Total Overall P&L:</b>
+            <span class='${totalOverall>=0?"success":"danger"}'>${format(totalOverall)}</span>
+          </div>
+        </div>
+      `;
     }
 
     // --- Tab Navigation ---
@@ -923,6 +957,18 @@
     // --- Simulated Live Market Data Updates ---
     function randomizeBondPrices() {
       bonds.forEach(bond => {
+        // Store previous prices for history
+        if (!priceHistory[bond.ticker]) {
+          priceHistory[bond.ticker] = {
+            timestamps: [],
+            bidPrices: [],
+            askPrices: []
+          };
+        }
+        
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        
         // Simulate small random walk for bid/ask/price
         const mid = (bond.ask + bond.bid) / 2;
         // Random walk for mid price
@@ -958,13 +1004,34 @@
         dynamicSpread = Math.max(dynamicSpread, 0.02);
         
         // New bid/ask with dynamic spread
-        bond.bid = Number((newMid - dynamicSpread/2).toFixed(2));
-        bond.ask = Number((newMid + dynamicSpread/2).toFixed(2));
-        bond.price = Number(newMid.toFixed(2));
+        const newBid = Number((newMid - dynamicSpread/2).toFixed(2));
+        const newAsk = Number((newMid + dynamicSpread/2).toFixed(2));
+        const newPrice = Number(newMid.toFixed(2));
+        
+        // Only update history if prices actually changed
+        if (newBid !== bond.bid || newAsk !== bond.ask) {
+          priceHistory[bond.ticker].timestamps.push(timeLabel);
+          priceHistory[bond.ticker].bidPrices.push(newBid);
+          priceHistory[bond.ticker].askPrices.push(newAsk);
+          
+          // Keep last 50 data points
+          if (priceHistory[bond.ticker].timestamps.length > 50) {
+            priceHistory[bond.ticker].timestamps.shift();
+            priceHistory[bond.ticker].bidPrices.shift();
+            priceHistory[bond.ticker].askPrices.shift();
+          }
+        }
+        
+        // Update bond prices
+        bond.bid = newBid;
+        bond.ask = newAsk;
+        bond.price = newPrice;
       });
       renderMarket();
       renderNetTable();
       checkPendingOrders();
+      // Update chart if it's open
+      updatePriceChart();
     }
 
     // --- Check and Execute Pending Orders (Limit/Stop) ---
@@ -1052,6 +1119,154 @@
         alert("No open Day orders to cancel.");
       }
     }
+
+    // --- Price Chart Modal Logic ---
+    let priceChart = null;
+    let chartUpdateInterval = null;
+    let chartCloseTimeout = null;
+    let currentBondTicker = null;
+    
+    function openPriceChart(ticker) {
+      const bond = bonds.find(b => b.ticker === ticker);
+      if (!bond) return;
+      
+      currentBondTicker = ticker;
+      document.getElementById('chart-title').textContent = `${ticker} - Live Price Chart`;
+      document.getElementById('chart-modal').style.display = 'flex';
+      
+      // Get price history for this bond
+      const history = priceHistory[ticker] || { timestamps: [], bidPrices: [], askPrices: [] };
+      
+      // If no history exists, start with current prices
+      if (history.timestamps.length === 0) {
+        const now = new Date();
+        const timeLabel = now.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        history.timestamps = [timeLabel];
+        history.bidPrices = [bond.bid];
+        history.askPrices = [bond.ask];
+      }
+      
+      // Create chart
+      const ctx = document.getElementById('price-chart').getContext('2d');
+      priceChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: history.timestamps,
+          datasets: [
+            {
+              label: 'Bid Price',
+              data: history.bidPrices,
+              borderColor: 'rgba(220, 53, 69, 0.8)',
+              backgroundColor: 'rgba(220, 53, 69, 0.1)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0.4
+            },
+            {
+              label: 'Ask Price',
+              data: history.askPrices,
+              borderColor: 'rgba(40, 167, 69, 0.8)',
+              backgroundColor: 'rgba(40, 167, 69, 0.1)',
+              borderWidth: 2,
+              fill: false,
+              tension: 0.4
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                color: getComputedStyle(document.body).getPropertyValue('--main-fg'),
+                font: { size: 12 }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                color: getComputedStyle(document.body).getPropertyValue('--muted'),
+                maxTicksLimit: 8
+              }
+            },
+            y: {
+              grid: {
+                color: 'rgba(0,0,0,0.1)',
+                drawBorder: false
+              },
+              ticks: {
+                color: getComputedStyle(document.body).getPropertyValue('--muted'),
+                callback: function(value) {
+                  return value.toFixed(2);
+                }
+              }
+            }
+          },
+          interaction: {
+            intersect: false,
+            mode: 'index'
+          },
+          elements: {
+            point: {
+              radius: 0,
+              hoverRadius: 4
+            }
+          }
+        }
+      });
+      
+      // Start live updates
+      startChartUpdates();
+    }
+    
+    function startChartUpdates() {
+      if (chartUpdateInterval) clearInterval(chartUpdateInterval);
+      
+      // Don't set up automatic updates - chart will update when market prices actually change
+    }
+    
+    // Function to update chart when market prices change
+    function updatePriceChart() {
+      if (!priceChart || !currentBondTicker) return;
+      
+      const bond = bonds.find(b => b.ticker === currentBondTicker);
+      if (!bond) return;
+      
+      const history = priceHistory[currentBondTicker];
+      if (!history || history.timestamps.length === 0) return;
+      
+      // Update chart with latest history data
+      priceChart.data.labels = history.timestamps;
+      priceChart.data.datasets[0].data = history.bidPrices;
+      priceChart.data.datasets[1].data = history.askPrices;
+      
+      priceChart.update('none'); // Fast update without animation
+    }
+    
+    function closeChartModal() {
+      document.getElementById('chart-modal').style.display = 'none';
+      
+      if (chartUpdateInterval) {
+        clearInterval(chartUpdateInterval);
+        chartUpdateInterval = null;
+      }
+      
+      if (priceChart) {
+        priceChart.destroy();
+        priceChart = null;
+      }
+      
+      currentBondTicker = null;
+    }
+    
+    window.closeChartModal = closeChartModal;
   </script>
 </body>
 </html> 

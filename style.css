@@ -375,4 +375,118 @@ section > form, .card {
     top: 92px; 
   }
 }
+
+/* --- Total P&L Summary Styling --- */
+#total-pnl-summary {
+  background: linear-gradient(135deg, var(--table-bg) 0%, var(--table-tr-alt) 100%);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+#total-pnl-summary::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--success) 0%, var(--info) 50%, var(--danger) 100%);
+}
+
+#total-pnl-summary b {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--main-fg);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 0.5rem;
+}
+
+#total-pnl-summary span {
+  font-weight: 700;
+  font-size: 1.1rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 6px;
+  background: rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.1);
+  margin-left: 0.5rem;
+  display: inline-block;
+  min-width: 80px;
+  text-align: center;
+  transition: all 0.2s ease;
+}
+
+#total-pnl-summary span.success {
+  background: rgba(40, 167, 69, 0.1);
+  border-color: rgba(40, 167, 69, 0.3);
+  color: var(--success);
+}
+
+#total-pnl-summary span.danger {
+  background: rgba(220, 53, 69, 0.1);
+  border-color: rgba(220, 53, 69, 0.3);
+  color: var(--danger);
+}
+
+body[data-theme="dark"] #total-pnl-summary {
+  background: linear-gradient(135deg, var(--table-bg) 0%, var(--table-tr-alt) 100%);
+  border-color: var(--border);
+}
+
+body[data-theme="dark"] #total-pnl-summary span {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.1);
+}
+
+body[data-theme="dark"] #total-pnl-summary span.success {
+  background: rgba(81, 207, 102, 0.15);
+  border-color: rgba(81, 207, 102, 0.4);
+}
+
+body[data-theme="dark"] #total-pnl-summary span.danger {
+  background: rgba(255, 107, 107, 0.15);
+  border-color: rgba(255, 107, 107, 0.4);
+}
+
+/* P&L Summary Layout */
+.pnl-summary-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.pnl-item {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.pnl-separator {
+  color: var(--muted);
+  font-weight: 300;
+  margin: 0 0.5rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .pnl-summary-container {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
   
+  .pnl-item {
+    justify-content: space-between;
+  }
+  
+  #total-pnl-summary {
+    padding: 1rem;
+  }
+}
